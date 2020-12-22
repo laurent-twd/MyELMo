@@ -63,7 +63,6 @@ class MyELMo:
                                     hidden_size = self.d_model,
                                     num_layers = self.num_layers,
                                     num_highway_layers = self.num_highway_layers,
-                                    max_sequence_length = self.pe_input,
                                     output_dropout = 0.5,
                                     recurrent_dropout = 0.5)
 
@@ -195,7 +194,7 @@ class MyELMo:
         mask = 1. - enc_padding_mask
 
         with tf.GradientTape() as tape:
-            outputs_encoder = self.generator([inp_chars, enc_padding_mask], training = True)
+            outputs_encoder = self.generator(inp_chars, enc_padding_mask, training = True)
             forward_logits = outputs_encoder['forward_logits']
             backward_logits = outputs_encoder['backward_logits']
 
@@ -204,10 +203,10 @@ class MyELMo:
             backward_logits += mask_logits[tf.newaxis, tf.newaxis, :] * (-1e9)
 
             forward_loss = tf.keras.losses.sparse_categorical_crossentropy(inp_words[:, 1:], forward_logits[:, :-1, :], from_logits = True)
-            backward_loss = tf.keras.losses.sparse_categorical_crossentropy(inp_words[:, :-1], forward_logits[:, 1:, :], from_logits = True)
+            backward_loss = tf.keras.losses.sparse_categorical_crossentropy(inp_words[:, :-1], backward_logits[:, 1:, :], from_logits = True)
             loss = forward_loss + backward_loss
 
-            loss = tf.math.divide_no_nan(tf.reduce_sum(loss * mask[:, :-1], axis = 1), tf.reduce_sum(mask - 1., axis = 1))
+            loss = tf.math.divide_no_nan(tf.reduce_sum(loss * mask[:, :-1], axis = 1), tf.reduce_sum(mask, axis = 1) - 1.)
             batch_loss = tf.reduce_mean(loss)
 
             variables = self.generator.trainable_variables[:-2]
