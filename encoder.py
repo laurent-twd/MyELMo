@@ -68,17 +68,20 @@ class ELMoEncoder(tf.keras.Model):
     forward_embeddings = (tf.keras.layers.Dropout(rate=output_dropout)(embeddings))
 
     sequence_lengths = tf.reduce_sum(1 - mask, axis = 1)
-    backward_embeddings = tf.reverse_sequence(forward_embeddings, seq_lengths = sequence_lengths, seq_axis = 1)
+    backward_embeddings = forward_embeddings
+    #backward_embeddings = tf.reverse_sequence(forward_embeddings, seq_lengths = sequence_lengths, seq_axis = 1)
 
     lstm_layers = [tf.keras.layers.LSTM(hidden_size, dropout = output_dropout, recurrent_dropout = recurrent_dropout, return_sequences = True, return_state = False) 
-                  for _ in range(num_layers)]    
+                  for _ in range(2 * num_layers)]    
 
     
     encoder_outputs = [forward_embeddings]
     for i in range(num_layers):
       forward_embeddings = lstm_layers[i](forward_embeddings)
       backward_embeddings = lstm_layers[i + num_layers](backward_embeddings)
-      layer_embedding = tf.concat([forward_embeddings, tf.reverse_sequence(backward_embeddings, seq_lengths = sequence_lengths, seq_axis = 1)], axis = 2)
+      #layer_embedding = tf.concat([forward_embeddings, tf.reverse_sequence(backward_embeddings, seq_lengths = sequence_lengths, seq_axis = 1)], axis = 2)
+      layer_embedding = tf.concat([forward_embeddings, backward_embeddings], axis = 2)
+      
       encoder_outputs.append(layer_embedding)
 
     last_encoder_output = encoder_outputs[-1]
@@ -127,11 +130,6 @@ class ELMoEncoder(tf.keras.Model):
 
   def get_config(self):
     return dict(self._config._asdict())
-
-  @property
-  def transformer_layers(self):
-    """List of Transformer layers in the encoder."""
-    return self._transformer_layers
 
   @property
   def pooler_layer(self):
