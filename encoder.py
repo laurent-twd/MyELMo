@@ -4,7 +4,6 @@ import tensorflow as tf
 
 from layers.highway_layer import HighwayLayer
 from layers.char_cnn import CharCNN
-from tf.keras.layers import LSTM
 
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import math_ops
@@ -23,7 +22,7 @@ def gelu(features, approximate=False, name=None):
       return 0.5 * features * (1.0 + math_ops.erf(
           features / math_ops.cast(1.4142135623730951, features.dtype)))
 
-class BertEncoder(tf.keras.Model):
+class ELMoEncoder(tf.keras.Model):
 
   def __init__(
       self,
@@ -92,16 +91,20 @@ class BertEncoder(tf.keras.Model):
     cls_output = pooler_layer(first_token_tensor)
 
     dense_logits = tf.keras.layers.Dense(output_dim, activation = 'linear')
-    logits = dense_logits(last_encoder_output)
+
+    forward_last_encoder_output, backward_last_encoder_output = tf.split(last_encoder_output, num_or_size_splits = 2, axis = 2)
+    forward_logits = dense_logits(forward_last_encoder_output)
+    backward_logits = dense_logits(backward_last_encoder_output)
 
     outputs = dict(
         sequence_output=encoder_outputs[-1],
         pooled_output=cls_output,
         encoder_outputs=encoder_outputs,
-        logits=logits
+        forward_logits=forward_logits,
+        backward_logits=backward_logits
     )
 
-    super(BertEncoder, self).__init__(
+    super(ELMoEncoder, self).__init__(
         inputs=[char_ids, mask], outputs=outputs, **kwargs)
 
     config_dict = {
